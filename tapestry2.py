@@ -35,6 +35,7 @@ for id, rw in msas.iterrows():
 
     msa = rw.namelsad
     msatag = rw['name']
+    print('processing {}'.format(msatag))
 
     #####Get the MSA shape
     q = """select shape from world
@@ -250,3 +251,4 @@ for id, rw in msas.iterrows():
     blocks.gpd.to_file('Tapestry_{}.geojson'.format(msatag), driver='GeoJSON').format()
     elapsed = (timeit.default_timer() - start_time) / 60
     print('{} completed in {} minutes'.format(msatag, elapsed))
+    print('----------------------------------------------------')
