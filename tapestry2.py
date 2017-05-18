@@ -15,7 +15,7 @@ from shapely.wkt import dumps
 import geopandas as gpd
 from pandasql import sqldf
 from numpy import argmax
-from rtree import index
+
 
 engine = sa.create_engine("crate://db.world.io:4200")
 
@@ -30,6 +30,7 @@ msas = pd.read_sql(q, engine)
 msas.head()
 
 for id, rw in msas.iterrows():
+    from rtree import index
 
     start_time = timeit.default_timer()
 
