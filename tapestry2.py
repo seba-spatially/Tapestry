@@ -223,7 +223,7 @@ for id, rw in msas.iterrows():
 
 
     if __name__ == '__main__':
-        with Pool(8) as p:
+        with Pool(6) as p:
             poly_ids = p.map(seba_over, points.geometry)
 
     poly_ids = pd.DataFrame(poly_ids)
