@@ -248,7 +248,7 @@ for id, rw in msas.iterrows():
     labels = pd.DataFrame(data={'type':pt.apply(argmax,1)})
     labels['geoid10'] = labels.index
     blocks.gpd = blocks.gpd.merge(labels, on='geoid10', how='left')
-    blocks.gpd.to_file('Tapestry_{}.geojson'.format(msatag), driver='GeoJSON').format()
+    blocks.gpd.to_csv('Tapestry_{}.txt'.format(msatag), sep='\t', index=False)
     elapsed = (timeit.default_timer() - start_time) / 60
     print('{} completed in {} minutes'.format(msatag, elapsed))
     print('----------------------------------------------------')
