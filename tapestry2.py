@@ -15,7 +15,7 @@ from shapely.wkt import dumps
 import geopandas as gpd
 from pandasql import sqldf
 from numpy import argmax
-
+import gc
 
 engine = sa.create_engine("crate://db.world.io:4200")
 
@@ -223,9 +223,8 @@ for id, rw in msas.iterrows():
         return(out)
 
 
-    if __name__ == '__main__':
-        with Pool(6) as p:
-            poly_ids = p.map(seba_over, points.geometry)
+    with Pool(6) as p:
+        poly_ids = p.map(seba_over, points.geometry)
 
     poly_ids = pd.DataFrame(poly_ids)
     poly_ids.head()
@@ -253,3 +252,4 @@ for id, rw in msas.iterrows():
     elapsed = (timeit.default_timer() - start_time) / 60
     print('{} completed in {} minutes'.format(msatag, elapsed))
     print('----------------------------------------------------')
+    gc.collect()
