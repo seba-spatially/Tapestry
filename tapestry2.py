@@ -19,6 +19,7 @@ from numpy import argmax
 
 engine = sa.create_engine("crate://db.world.io:4200")
 
+#Select the N (50) most populated MSAs.
 q = """
 select data['t_namelsad'] namelsad, data['t_name'] name
   from world
@@ -29,7 +30,11 @@ select data['t_namelsad'] namelsad, data['t_name'] name
 msas = pd.read_sql(q, engine)
 msas.head()
 
+#here one should select a few rows from the dataframe "msas" so the server does not run out of memory.
+
+#For each row in "msas"
 for id, rw in msas.iterrows():
+  # rtree makes spatial intersections way faster
     from rtree import index
 
     start_time = timeit.default_timer()
@@ -46,7 +51,7 @@ for id, rw in msas.iterrows():
     z = pd.read_sql(q, engine)
     BB = dumps(shape(z['shape'][0]))
 
-    #### Get the Tiger blocks that intersect an MSA
+    #### Get the Tiger blocks that intersect the current MSA
     q = """select count(*) from world
         where ingestid = '25cb2427c0a5710a983e2f3a1f484bc6'
          and match(shape, '{}') using intersects""".format(BB)
@@ -94,7 +99,6 @@ for id, rw in msas.iterrows():
 
     #Get ingestid and datasetid of the business data for the msa processed
     def bizLoc():
-        #engine = sa.create_engine("crate://db.world.io:4200")
         # This query might fail.  make sure that the variable msa defined above can also uniquely identify the datasetid
         # of the business data in the desired MSA
         q = """select datasetid, metadata['table'] _table, ingestid, major, minor
@@ -122,6 +126,7 @@ for id, rw in msas.iterrows():
 
 
     biz = pd.read_sql(q, engine)
+    #make a geodataframe with the business points
     geo = [shape(i) for i in biz['shape']]
     del biz['shape']
     biz.gpd = gpd.GeoDataFrame(geometry=geo, data=biz, crs={'init': 'epsg:4326'}).copy()
@@ -131,7 +136,7 @@ for id, rw in msas.iterrows():
     biz.gpd['type'] = ''
 
     pysqldf = lambda q: sqldf(q, globals())
-
+    ## In the next block we assign a label to each business point based on their sic code
     ###Professionals
     q = """
     select pid from biz
@@ -203,7 +208,7 @@ for id, rw in msas.iterrows():
     del biz.gpd['is_restaurant']
     del biz.gpd['sic']
 
-    ##########  All points together
+    ##########  Merge all points together
 
     points = houses.gpd.append(biz.gpd, ignore_index=True)
     points = points.reset_index(drop=True)
@@ -236,18 +241,24 @@ for id, rw in msas.iterrows():
     y = blocks.gpd[['geoid10']]
     y['blockID'] = blocks.gpd.index
 
+      #Merge the businesses type and 'blockID' with the geoid10
     data = x.merge(y, on='blockID')
     data['values'] = 1
 
+      #This is the equivalent to a Pandas Crosstab but it is memory-saving 
+      #(Pandas' crosstab normally crashes with this much data)
     pt = data.groupby(['geoid10', 'type'])['values'].sum().unstack()
     pt = pt.fillna(value=0)
     def f(x):
         return(x/x.max())
+      #Normalize across rows and then across columns
     pt = pt.apply(f, axis=0)
     pt = pt.apply(f, axis=1)
-
+    
+    #Assign the label of the column with the highest normalized score.
     labels = pd.DataFrame(data={'type':pt.apply(argmax,1)})
     labels['geoid10'] = labels.index
+    #burns the labels on the blocks geodataframe.
     blocks.gpd = blocks.gpd.merge(labels, on='geoid10', how='left')
     blocks.gpd.to_csv('Tapestry_{}.txt'.format(msatag), sep='\t', index=False)
     elapsed = (timeit.default_timer() - start_time) / 60
